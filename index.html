@@ -144,6 +144,18 @@
   .voice button small { font-size: 16px; font-weight: 500; opacity: .8; margin-top: 2px; }
   .voice button[aria-pressed=true] { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
 
+  .keyrow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 0 0 14px; }
+  .keyrow button {
+    min-height: 80px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15;
+    font-size: 24px; font-weight: 700; transition: transform .12s ease;
+  }
+  .keyrow button:active { transform: scale(.97); }
+  .keyrow button small { font-size: 15px; font-weight: 500; color: var(--ink-soft); margin-top: 3px; }
+  .keyrow button:disabled { opacity: .35; }
+  .keyrow .keyval { background: transparent; border-color: transparent; box-shadow: none; }
+  .keyrow .keyval span { font-size: 28px; color: var(--ink); }
+  .keyrow .keyval.changed span { color: var(--accent); }
   .ctrls { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
   .ctrl {
     min-height: 96px; border-radius: var(--radius);
@@ -247,6 +259,11 @@
         <div class="voice" role="group" aria-label="聲音">
           <button id="vVocal" aria-pressed="true">有人聲<small>歌手演唱</small></button>
           <button id="vKara" aria-pressed="false">純伴奏<small>只有旋律</small></button>
+        </div>
+        <div class="keyrow" role="group" aria-label="升降 Key">
+          <button id="keyDown" aria-label="降 Key">降 Key<small>聲音低一點</small></button>
+          <button id="keyReset" class="keyval" aria-label="回到原調"><span id="keyVal">原調</span><small id="keyHint">目前音高</small></button>
+          <button id="keyUp" aria-label="升 Key">升 Key<small>聲音高一點</small></button>
         </div>
         <div class="ctrls">
           <button class="ctrl play" id="play" aria-label="播放">
@@ -371,14 +388,47 @@ function setupAudio() {
     merge.connect(master);
     master.connect(ctx.destination);
     audioOk = true;
+    loadPitch(merge);
     applyVoice(true);
     applyMute(true);
   } catch (e) {
     console.warn("Web Audio 無法使用", e);
     audioOk = false;
+    ["keyDown", "keyUp", "keyReset"].forEach(id => $(id).disabled = true);
     $("note").textContent = "這台裝置不支援切換人聲／伴奏，會同時播出兩者。";
   }
 }
+/* ---------- 升降 Key ---------- */
+const KEY_MIN = -6, KEY_MAX = 6;
+let keyShift = 0, pitchNode = null;
+async function loadPitch(merge) {
+  try {
+    if (!ctx.audioWorklet) throw new Error("no worklet");
+    await ctx.audioWorklet.addModule("pitch-worklet.js");
+    pitchNode = new AudioWorkletNode(ctx, "pitch-shifter", { outputChannelCount: [2] });
+    merge.disconnect();
+    merge.connect(pitchNode);
+    pitchNode.connect(master);
+    applyKey();
+  } catch (e) {
+    console.warn("升降 Key 無法使用", e);
+    ["keyDown", "keyUp", "keyReset"].forEach(id => $(id).disabled = true);
+    $("keyHint").textContent = "此裝置不支援";
+  }
+}
+function applyKey() {
+  const v = $("keyVal");
+  v.textContent = keyShift === 0 ? "原調" : (keyShift > 0 ? "+" + keyShift : "−" + (-keyShift));
+  $("keyReset").classList.toggle("changed", keyShift !== 0);
+  $("keyHint").textContent = keyShift === 0 ? "目前音高" : "點這裡回原調";
+  $("keyDown").disabled = keyShift <= KEY_MIN;
+  $("keyUp").disabled = keyShift >= KEY_MAX;
+  if (pitchNode) pitchNode.parameters.get("semitones").setValueAtTime(keyShift, ctx.currentTime);
+}
+$("keyDown").onclick  = () => { setupAudio(); if (keyShift > KEY_MIN) keyShift--; applyKey(); };
+$("keyUp").onclick    = () => { setupAudio(); if (keyShift < KEY_MAX) keyShift++; applyKey(); };
+$("keyReset").onclick = () => { setupAudio(); keyShift = 0; applyKey(); };
+
 function ramp(g, v, instant) {
   const t = ctx.currentTime;
   g.gain.cancelScheduledValues(t);
