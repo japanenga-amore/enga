@@ -244,8 +244,8 @@
 
 <script>
 /* ===== 設定：影片放在哪裡 =====
-   VIDEO_BASE 是影片倉庫的網址；每首歌的檔名為 01.mp4 ~ 16.mp4 */
-const VIDEO_BASE = window.ENGA_VIDEO_BASE || "videos/";
+   VIDEO_BASE 是影片倉庫的網址；每首歌的檔名為 AVSEQ01.mov ~ AVSEQ16.mov */
+const VIDEO_BASE = window.ENGA_VIDEO_BASE || "https://pub-a8f97bad0e354c668c1779fd893493fc.r2.dev/";
 
 const SONGS = [
   "紅の舟唄", "北の旅人", "大阪恋しずく", "思案橋ブルース",
@@ -253,7 +253,7 @@ const SONGS = [
   "雪國", "昭和ひとり旅", "雨の空港", "ひとり上手",
   "あかね空", "好きになった人", "涙をありがとう", "達者でナ"
 ];
-const fileFor = i => window.ENGA_FILES ? window.ENGA_FILES[i] : VIDEO_BASE + String(i + 1).padStart(2, "0") + ".mp4";
+const fileFor = i => window.ENGA_FILES ? window.ENGA_FILES[i] : VIDEO_BASE + "AVSEQ" + String(i + 1).padStart(2, "0") + ".mov";
 
 const $ = id => document.getElementById(id);
 const video = $("video");
