@@ -144,7 +144,7 @@
   .voice button small { font-size: 16px; font-weight: 500; opacity: .8; margin-top: 2px; }
   .voice button[aria-pressed=true] { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
 
-  .ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ctrls { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
   .ctrl {
     min-height: 96px; border-radius: var(--radius);
     background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
@@ -257,11 +257,6 @@
           <button class="ctrl" id="loop" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>
             <span>重複</span>
-          </button>
-          <button class="ctrl" id="mute" aria-pressed="false">
-            <svg id="icoVol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-            <svg id="icoMute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/></svg>
-            <span id="muteTxt">消音</span>
           </button>
           <button class="ctrl" id="full">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
@@ -398,16 +393,11 @@ function applyVoice(instant) {
   ramp(gLeft,  voice === "kara"  ? 1 : 0, instant);
 }
 function applyMute(instant) {
-  $("mute").setAttribute("aria-pressed", muted);
-  $("muteTxt").textContent = muted ? "取消消音" : "消音";
-  $("icoVol").style.display = muted ? "none" : "";
-  $("icoMute").style.display = muted ? "" : "none";
   if (audioOk) ramp(master, muted ? 0 : 1, instant);
   else video.muted = muted;
 }
 $("vVocal").onclick = () => { setupAudio(); voice = "vocal"; applyVoice(); };
 $("vKara").onclick  = () => { setupAudio(); voice = "kara";  applyVoice(); };
-$("mute").onclick   = () => { setupAudio(); muted = !muted; applyMute(); };
 
 /* ---------- 播放控制 ---------- */
 video.crossOrigin = "anonymous";
