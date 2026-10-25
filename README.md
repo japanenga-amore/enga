@@ -45,3 +45,11 @@
 - 歌名在 `index.html` 的 `SONGS` 清單；影片網址在 `VIDEO_BASE`
 - 密碼只存 SHA-256 指紋（`PASS_HASH`，內容為 `enga-salt-` + 密碼），要改密碼需重新計算
 - 推送到 `main` 後，GitHub Pages 約 1–2 分鐘自動更新
+
+## 1～10 號歌單
+
+- 網址：`https://japanenga-amore.github.io/enga/1/` ～ `/enga/10/`，每個網址各自有歌名、影片與密碼
+- 設定檔：`tools/lists.json`（歌單名稱、歌名、密碼指紋）；改完執行 `python3 tools/build_lists.py` 產生 `1/`～`10/`
+- 影片放在 R2 倉庫的子資料夾，例如第 3 號歌單的第 1 首：`3/AVSEQ01.mov`
+- 根目錄 `index.html` 是原本的 16 首歌單，也是 1～10 號的範本；改了範本要重新執行產生程式
+- 密碼不寫在這裡（專案是公開的），請看專案備忘錄

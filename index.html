@@ -363,6 +363,12 @@ SONGS.forEach((name, i) => {
   li.firstChild.addEventListener("click", () => openSong(i));
   ul.appendChild(li);
 });
+if (!SONGS.length) {
+  const li = document.createElement("li");
+  li.style.cssText = "padding:40px 8px;text-align:center;color:var(--ink-soft);font-size:26px";
+  li.textContent = "歌單準備中，敬請期待";
+  ul.appendChild(li);
+}
 
 /* ---------- 聲音：左右聲道切換 ----------
    右聲道 = 有人聲，左聲道 = 純伴奏。選定的那一邊會同時從兩耳播出。 */
