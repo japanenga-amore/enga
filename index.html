@@ -144,7 +144,7 @@
   .voice button small { font-size: 16px; font-weight: 500; opacity: .8; margin-top: 2px; }
   .voice button[aria-pressed=true] { background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
 
-  .ctrls { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 12px; }
+  .ctrls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .ctrl {
     min-height: 96px; border-radius: var(--radius);
     background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
@@ -156,6 +156,26 @@
   .ctrl svg { width: 36px; height: 36px; }
   .ctrl.play { background: var(--accent); color: #fff; border-color: var(--accent); font-size: 24px; }
   .ctrl[aria-pressed=true]:not(.play) { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  /* 全螢幕 */
+  .stage.fs { border-radius: 0; aspect-ratio: auto; width: 100vw; height: 100vh; height: 100dvh; box-shadow: none; }
+  .stage:fullscreen { border-radius: 0; aspect-ratio: auto; width: 100%; height: 100%; }
+  .stage:-webkit-full-screen { border-radius: 0; width: 100%; height: 100%; }
+  .fsbar {
+    position: absolute; left: 0; right: 0; bottom: 0; display: none; gap: 12px; justify-content: center;
+    padding: 18px 16px calc(env(safe-area-inset-bottom) + 18px);
+    background: linear-gradient(to top, rgba(0,0,0,.7), rgba(0,0,0,0));
+    transition: opacity .3s ease;
+  }
+  .stage.fs .fsbar { display: flex; }
+  .stage.fs.idle .fsbar { opacity: 0; pointer-events: none; }
+  .fsbar button {
+    min-width: 130px; min-height: 72px; padding: 0 22px; border-radius: 18px;
+    background: rgba(255,255,255,.92); color: var(--ink); font-size: 24px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .fsbar button svg { width: 30px; height: 30px; }
+  .fsbar .fsplay { background: var(--accent); color: #fff; }
+  .fsbar .fsvoice { color: var(--accent); }
   .note { margin: 18px 4px 0; font-size: 17px; color: var(--ink-soft); text-align: center; }
   @media (min-width: 900px) {
     #player .grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 24px; align-items: start; }
@@ -205,9 +225,17 @@
     </div>
     <div class="grid">
       <div>
-        <div class="stage">
+        <div class="stage" id="stage">
           <video id="video" playsinline webkit-playsinline preload="metadata"></video>
           <div class="msg" id="msg"></div>
+          <div class="fsbar" id="fsbar">
+            <button class="fsplay" id="fsPlay">暫停</button>
+            <button class="fsvoice" id="fsVoice">有人聲</button>
+            <button id="fsExit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4"/><path d="M15 4v5h5"/><path d="M9 20v-5H4"/><path d="M15 20v-5h5"/></svg>
+              離開全螢幕
+            </button>
+          </div>
         </div>
         <div class="progress">
           <span id="cur">0:00</span>
@@ -234,6 +262,10 @@
             <svg id="icoVol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
             <svg id="icoMute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M11 5L6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/></svg>
             <span id="muteTxt">消音</span>
+          </button>
+          <button class="ctrl" id="full">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
+            <span>全螢幕</span>
           </button>
         </div>
         <p class="note" id="note"></p>
@@ -399,6 +431,7 @@ function play() {
   if (p && p.catch) p.catch(() => { showMsg(""); });
 }
 function closeSong() {
+  if (fsEl()) exitFull();
   video.pause();
   video.removeAttribute("src");
   video.load();
@@ -412,7 +445,7 @@ window.addEventListener("popstate", () => { if ($("player").classList.contains("
 
 $("play").onclick = () => { if (video.paused || video.ended) play(); else video.pause(); };
 $("loop").onclick = () => { video.loop = !video.loop; $("loop").setAttribute("aria-pressed", video.loop); };
-video.addEventListener("click", () => $("play").click());
+video.addEventListener("click", () => { if (!stage.classList.contains("fs")) $("play").click(); });
 
 function syncPlay() {
   const playing = !video.paused && !video.ended;
@@ -445,6 +478,52 @@ seek.addEventListener("change", () => {
   if (video.duration) video.currentTime = seek.value / 1000 * video.duration;
   dragging = false;
 });
+
+/* ---------- 全螢幕 ----------
+   電腦、Android：整個影片區變全螢幕，下方有大按鈕（播放、人聲／伴奏、離開）。
+   iPhone：改用手機內建的全螢幕播放器。 */
+const stage = $("stage");
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+const canFs = !!(stage.requestFullscreen || stage.webkitRequestFullscreen);
+let idleTimer = null;
+function wakeBar() {
+  stage.classList.remove("idle");
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (!video.paused) stage.classList.add("idle"); }, 3000);
+}
+function syncFsBar() {
+  $("fsPlay").textContent = (!video.paused && !video.ended) ? "暫停" : "播放";
+  $("fsVoice").textContent = voice === "vocal" ? "有人聲" : "純伴奏";
+}
+async function enterFull() {
+  setupAudio();
+  if (canFs) {
+    try {
+      await (stage.requestFullscreen ? stage.requestFullscreen({ navigationUI: "hide" }) : stage.webkitRequestFullscreen());
+      try { await screen.orientation.lock("landscape"); } catch (e) {}
+      return;
+    } catch (e) {}
+  }
+  if (video.webkitEnterFullscreen) { try { video.webkitEnterFullscreen(); } catch (e) {} }
+}
+function exitFull() {
+  try { screen.orientation.unlock(); } catch (e) {}
+  if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+}
+function onFsChange() {
+  const on = fsEl() === stage;
+  stage.classList.toggle("fs", on);
+  if (on) { syncFsBar(); wakeBar(); } else { stage.classList.remove("idle"); try { screen.orientation.unlock(); } catch (e) {} }
+}
+document.addEventListener("fullscreenchange", onFsChange);
+document.addEventListener("webkitfullscreenchange", onFsChange);
+$("full").onclick = enterFull;
+$("fsExit").onclick = e => { e.stopPropagation(); exitFull(); };
+$("fsPlay").onclick = e => { e.stopPropagation(); $("play").click(); wakeBar(); };
+$("fsVoice").onclick = e => { e.stopPropagation(); setupAudio(); voice = voice === "vocal" ? "kara" : "vocal"; applyVoice(); syncFsBar(); wakeBar(); };
+stage.addEventListener("pointerdown", () => { if (stage.classList.contains("fs")) wakeBar(); });
+["play", "pause", "ended"].forEach(e => video.addEventListener(e, () => { syncFsBar(); if (stage.classList.contains("fs")) wakeBar(); }));
+video.addEventListener("dblclick", () => fsEl() ? exitFull() : enterFull());
 
 /* 播放時不讓螢幕自動關閉 */
 let wake = null;
