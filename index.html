@@ -188,30 +188,6 @@
   .fsbar button svg { width: 30px; height: 30px; }
   .fsbar .fsplay { background: var(--accent); color: #fff; }
   .fsbar .fsvoice { color: var(--accent); }
-  /* 錄音（試做） */
-  .rec { margin-top: 18px; padding: 16px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
-  .rec[hidden] { display: none; }
-  .rec h3 { margin: 0 0 12px; font-size: 22px; }
-  .recbtn {
-    width: 100%; min-height: 84px; border-radius: 18px; background: #C62F2F; color: #fff;
-    display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 26px; font-weight: 700;
-  }
-  .recbtn .dot { width: 22px; height: 22px; border-radius: 50%; background: #fff; }
-  .recbtn.on { background: var(--ink); }
-  .recbtn.on .dot { border-radius: 4px; animation: blink 1s steps(2) infinite; }
-  @keyframes blink { 50% { opacity: .3; } }
-  .rechint { margin: 10px 2px 0; font-size: 17px; color: var(--ink-soft); line-height: 1.5; }
-  .takes { display: grid; gap: 10px; margin-top: 12px; }
-  .take { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--bg); }
-  .take b { font-size: 20px; }
-  .take small { display: block; font-size: 15px; color: var(--ink-soft); font-weight: 500; }
-  .take button { min-height: 56px; min-width: 64px; padding: 0 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); font-size: 19px; font-weight: 700; }
-  .take button.pl { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .count { position: absolute; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.45); color: #fff; font-size: 120px; font-weight: 700; }
-  .count.on { display: grid; }
-  .recbadge { position: absolute; top: 12px; left: 12px; display: none; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(198,47,47,.92); color: #fff; font-size: 18px; font-weight: 700; }
-  .recbadge.on { display: inline-flex; }
-  .recbadge::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #fff; animation: blink 1s steps(2) infinite; }
   .note { margin: 18px 4px 0; font-size: 17px; color: var(--ink-soft); text-align: center; }
   @media (min-width: 900px) {
     #player .grid { display: grid; grid-template-columns: 1.7fr 1fr; gap: 24px; align-items: start; }
@@ -264,8 +240,6 @@
         <div class="stage" id="stage">
           <video id="video" playsinline webkit-playsinline preload="metadata"></video>
           <div class="msg" id="msg"></div>
-          <div class="count" id="count"></div>
-          <div class="recbadge" id="recBadge">錄音中 <span id="recTime">0:00</span></div>
           <div class="fsbar" id="fsbar">
             <button class="fsplay" id="fsPlay">暫停</button>
             <button class="fsvoice" id="fsVoice">有人聲</button>
@@ -305,12 +279,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg>
             <span>全螢幕</span>
           </button>
-        </div>
-        <div class="rec" id="recBox" hidden>
-          <h3>唱歌錄音</h3>
-          <button class="recbtn" id="recBtn"><span class="dot"></span><span id="recTxt">開始錄我唱的歌</span></button>
-          <p class="rechint" id="recHint">按下後會自動切到「純伴奏」，倒數 3 秒從頭開始。建議戴有線耳機，錄起來最清楚。</p>
-          <div class="takes" id="takes"></div>
         </div>
         <p class="note" id="note"></p>
       </div>
@@ -354,7 +322,6 @@ let typed = "", leftAt = 0;
 function relock() {
   typed = ""; paintDots(); $("lockmsg").textContent = "";
   lock.style.transition = ""; lock.style.opacity = 1; lock.hidden = false;
-  if (typeof rec !== "undefined" && rec) stopRec();
   if (!video.paused) video.pause();
 }
 document.addEventListener("visibilitychange", () => {
@@ -528,9 +495,7 @@ $("vKara").onclick  = () => { setupAudio(); voice = "kara";  applyVoice(); };
 video.crossOrigin = "anonymous";
 function showMsg(t) { $("msg").textContent = t || ""; $("msg").classList.toggle("on", !!t); }
 
-let currentSong = -1;
 function openSong(i) {
-  currentSong = i;
   setupAudio();                       // 必須在按下按鈕時啟動聲音
   $("now").textContent = `${i + 1}. ${SONGS[i]}`;
   $("list").classList.remove("on");
@@ -548,7 +513,6 @@ function play() {
   if (p && p.catch) p.catch(() => { showMsg(""); });
 }
 function closeSong() {
-  if (typeof rec !== "undefined" && rec) stopRec();
   if (fsEl()) exitFull();
   video.pause();
   video.removeAttribute("src");
@@ -642,146 +606,6 @@ $("fsVoice").onclick = e => { e.stopPropagation(); setupAudio(); voice = voice =
 stage.addEventListener("pointerdown", () => { if (stage.classList.contains("fs")) wakeBar(); });
 ["play", "pause", "ended"].forEach(e => video.addEventListener(e, () => { syncFsBar(); if (stage.classList.contains("fs")) wakeBar(); }));
 video.addEventListener("dblclick", () => fsEl() ? exitFull() : enterFull());
-
-/* ---------- 唱歌錄音（試做） ----------
-   伴奏（含升降 Key）＋麥克風的歌聲，一起錄成一個聲音檔。錄音只存在這台手機的這次開啟中。 */
-const RECORD_ON = window.ENGA_RECORD_ON || false;
-let rec = null;            // 錄音中的資料
-const takes = [];          // 錄好的檔案
-const takePlayer = new Audio();
-if (RECORD_ON && navigator.mediaDevices && window.MediaRecorder) $("recBox").hidden = false;
-
-function pickType() {
-  for (const t of ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) return t;
-  return "";
-}
-function setAudioSession(t) { if (navigator.audioSession) { try { navigator.audioSession.type = t; } catch (e) {} } }
-
-async function startRec() {
-  setupAudio();
-  if (!audioOk) { $("recHint").textContent = "這台裝置無法錄音。"; return; }
-  let stream;
-  try {
-    setAudioSession("play-and-record");
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false } });
-  } catch (e) {
-    setAudioSession("playback");
-    $("recHint").textContent = "沒有拿到麥克風的使用許可。請在跳出的視窗按「允許」，或到手機設定裡允許瀏覽器使用麥克風。";
-    return;
-  }
-  if (ctx.state !== "running") await ctx.resume();
-  // 伴奏切到純伴奏，回到開頭
-  voice = "kara"; applyVoice(true); syncFsBar();
-  video.pause(); video.currentTime = 0;
-  const wasLoop = video.loop; video.loop = false; $("loop").setAttribute("aria-pressed", false);
-
-  // 錄音的聲音路線：伴奏（延遲一點對齊歌聲）＋麥克風
-  const dest = ctx.createMediaStreamDestination();
-  const limiter = ctx.createDynamicsCompressor();   // 避免聲音太大爆音
-  limiter.threshold.value = -6; limiter.knee.value = 6; limiter.ratio.value = 12;
-  limiter.attack.value = 0.003; limiter.release.value = 0.25;
-  limiter.connect(dest);
-  const track = stream.getAudioTracks()[0];
-  const inLat = (track.getSettings && track.getSettings().latency) || 0;
-  let lat = (ctx.outputLatency || 0) + (ctx.baseLatency || 0) + inLat;
-  if (!lat) lat = 0.12;
-  lat = Math.min(Math.max(lat, 0), 0.5);
-  const delay = ctx.createDelay(1); delay.delayTime.value = lat;
-  const musicGain = ctx.createGain(); musicGain.gain.value = 0.7;
-  master.connect(delay); delay.connect(musicGain); musicGain.connect(limiter);
-  const mic = ctx.createMediaStreamSource(stream);
-  const micGain = ctx.createGain(); micGain.gain.value = 1.0;
-  mic.connect(micGain); micGain.connect(limiter);
-
-  const type = pickType();
-  const mr = new MediaRecorder(dest.stream, type ? { mimeType: type } : undefined);
-  const chunks = [];
-  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-  rec = { stream, mr, chunks, nodes: [delay, musicGain, mic, micGain, limiter], wasLoop, song: currentSong, t0: 0, timer: null, stopping: false };
-  mr.onstop = () => finishRec(rec);
-
-  $("recBtn").classList.add("on"); $("recTxt").textContent = "停止錄音";
-  $("recHint").textContent = "預備……";
-  // 倒數 3 秒
-  const cd = $("count");
-  for (const n of [3, 2, 1]) {
-    if (!rec || rec.stopping) return;
-    cd.textContent = n; cd.classList.add("on");
-    await new Promise(r => setTimeout(r, 1000));
-  }
-  cd.classList.remove("on");
-  if (!rec || rec.stopping) return;
-  mr.start(1000);
-  rec.t0 = Date.now();
-  $("recBadge").classList.add("on");
-  rec.timer = setInterval(() => { $("recTime").textContent = fmt((Date.now() - rec.t0) / 1000); }, 500);
-  $("recHint").textContent = "錄音中，唱完或按「停止錄音」就會存好。";
-  play();
-}
-function stopRec() {
-  if (!rec || rec.stopping) return;
-  rec.stopping = true;
-  $("count").classList.remove("on");
-  video.pause();
-  if (rec.mr.state !== "inactive") rec.mr.stop();
-  else finishRec(rec);
-}
-function finishRec(r) {
-  clearInterval(r.timer);
-  r.stream.getTracks().forEach(t => t.stop());
-  r.nodes.forEach(n => { try { n.disconnect(); } catch (e) {} });
-  setAudioSession("playback");
-  video.loop = r.wasLoop; $("loop").setAttribute("aria-pressed", video.loop);
-  $("recBadge").classList.remove("on");
-  $("recBtn").classList.remove("on"); $("recTxt").textContent = "開始錄我唱的歌";
-  if (rec === r) rec = null;
-  if (!r.t0 || !r.chunks.length) { $("recHint").textContent = "沒有錄到聲音，可以再試一次。"; return; }
-  const secs = (Date.now() - r.t0) / 1000;
-  const blob = new Blob(r.chunks, { type: r.mr.mimeType || "audio/mp4" });
-  takes.unshift({ blob, url: URL.createObjectURL(blob), secs, song: r.song, n: takes.length + 1, key: keyShift });
-  $("recHint").textContent = "錄好了！可以按「聽」，滿意的話按「存檔」存到手機。（關掉 App 後，沒存檔的錄音會消失）";
-  renderTakes();
-}
-function renderTakes() {
-  const box = $("takes"); box.innerHTML = "";
-  takes.forEach(t => {
-    const d = document.createElement("div"); d.className = "take";
-    const keyTxt = t.key ? `，Key ${t.key > 0 ? "+" + t.key : "−" + (-t.key)}` : "";
-    d.innerHTML = `<div><b></b><small></small></div><button class="pl">聽</button><button class="sv">存檔</button><button class="del">刪除</button>`;
-    d.querySelector("b").textContent = `第 ${t.n} 次`;
-    d.querySelector("small").textContent = `${SONGS[t.song] || ""}・${fmt(t.secs)}${keyTxt}`;
-    const pl = d.querySelector(".pl");
-    pl.dataset.url = t.url;
-    pl.onclick = () => {
-      if (takePlayer.src === t.url && !takePlayer.paused) { takePlayer.pause(); return; }
-      video.pause();
-      takePlayer.src = t.url; takePlayer.play().catch(() => {});
-    };
-    d.querySelector(".sv").onclick = () => saveTake(t);
-    d.querySelector(".del").onclick = () => {
-      if (takePlayer.src === t.url) takePlayer.pause();
-      URL.revokeObjectURL(t.url); takes.splice(takes.indexOf(t), 1); renderTakes();
-    };
-    box.appendChild(d);
-  });
-}
-async function saveTake(t) {
-  const ext = (t.blob.type.includes("mp4") ? "m4a" : "webm");
-  const name = `我的錄音-${String(t.song + 1).padStart(2, "0")}-${SONGS[t.song] || "歌"}-${t.n}.${ext}`;
-  const file = new File([t.blob], name, { type: t.blob.type });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === "AbortError") return; }
-  }
-  const a = document.createElement("a"); a.href = t.url; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-}
-function syncTakeButtons() {
-  document.querySelectorAll(".take .pl").forEach(b => { b.textContent = (!takePlayer.paused && takePlayer.src === b.dataset.url) ? "暫停" : "聽"; });
-}
-["play", "pause", "ended"].forEach(e => takePlayer.addEventListener(e, syncTakeButtons));
-$("recBtn").onclick = () => rec ? stopRec() : startRec();
-video.addEventListener("ended", () => { if (rec) stopRec(); });
-video.addEventListener("play", () => { if (!takePlayer.paused) takePlayer.pause(); });
 
 /* 播放時不讓螢幕自動關閉 */
 let wake = null;
