@@ -270,13 +270,21 @@ hello.addEventListener("click", closeHello);
 setTimeout(closeHello, 2200);
 
 /* ---------- 密碼 ----------
-   只存密碼的「指紋」，不直接寫出密碼。輸入正確一次後，這台裝置會記住，下次不用再輸入。 */
+   只存密碼的「指紋」，不直接寫出密碼。每次打開都要輸入；
+   離開 App 超過 1 分鐘再回來，也要重新輸入。 */
 const PASS_HASH = "e70146b73b2791162b3e1120d623f365541780468db484811637868421b1870d";
 const lock = $("lock");
-const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-                set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
-if (store.get("enga_ok") === PASS_HASH) lock.hidden = true;
-let typed = "";
+let typed = "", leftAt = 0;
+function relock() {
+  typed = ""; paintDots(); $("lockmsg").textContent = "";
+  lock.style.transition = ""; lock.style.opacity = 1; lock.hidden = false;
+  if (!video.paused) video.pause();
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") leftAt = Date.now();
+  else if (leftAt && Date.now() - leftAt > 60000) relock();
+});
+window.addEventListener("pageshow", e => { if (e.persisted) relock(); });
 async function hashOf(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("enga-salt-" + s));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -291,7 +299,6 @@ $("pad").addEventListener("click", async e => {
   paintDots();
   if (typed.length === 6) {
     if (await hashOf(typed) === PASS_HASH) {
-      store.set("enga_ok", PASS_HASH);
       lock.style.transition = "opacity .4s ease"; lock.style.opacity = 0;
       setTimeout(() => { lock.hidden = true; }, 400);
     } else {
